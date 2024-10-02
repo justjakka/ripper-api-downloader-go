@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/BurntSushi/toml"
-	"github.com/kirsle/configdir"
 )
 
 type Config struct {
@@ -17,11 +17,31 @@ type Config struct {
 	ApiKey string `toml:"apikey"`
 }
 
+func GetConfigDir() string {
+	if runtime.GOOS == "windows" {
+		return os.Getenv("APPDATA")
+	} else if runtime.GOOS == "linux" {
+		if os.Getenv("XDG_CONFIG_HOME") != "" {
+			return os.Getenv("XDG_CONFIG_HOME")
+		} else {
+			return filepath.Join(os.Getenv("HOME"), ".config")
+		}
+	} else if runtime.GOOS == "darwin" {
+		return os.Getenv("HOME") + "/Library/Application Support"
+	} else {
+		return ""
+	}
+
+}
+
 func CheckConfig() (*Config, error) {
-	path := configdir.LocalConfig()
-	err := configdir.MakePath(path)
-	if err != nil {
-		panic(err)
+	path := GetConfigDir()
+	if path == "" {
+		return nil, errors.New("invalid OS")
+	}
+	err := os.Mkdir(path, os.ModePerm)
+	if err != nil && os.IsNotExist(err) {
+		return nil, err
 	}
 
 	configfile := filepath.Join(path, "ripper-config.toml")
