@@ -313,5 +313,7 @@ func Download(config *Config, url string, client *http.Client, counter int, max_
 	if err != nil {
 		return err
 	}
+	bar.Finish()
+	fmt.Println()
 	return nil
 }
