@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -54,7 +55,11 @@ func CheckConfig() (*Config, error) {
 
 		defer fh.Close()
 
-		err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "/home/user/Downloads/", Url: "https://test.dev", ApiKey: "test123"})
+		if runtime.GOOS == "windows" {
+			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "C:\\Users\\Test\\Downloads\\", Url: "https://test.dev/", ApiKey: "test123"})
+		} else {
+			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "/home/user/Downloads/", Url: "https://test.dev/", ApiKey: "test123"})
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -71,6 +76,24 @@ func CheckConfig() (*Config, error) {
 
 	if config.ApiKey == "" || config.Path == "" || config.Url == "" {
 		return nil, errors.New("invalid configuration")
+	}
+
+	if runtime.GOOS == "windows" {
+		if !strings.HasSuffix(config.Url, "\\") {
+			config.Url = fmt.Sprintf("%v\\", config.Url)
+		}
+
+		if !strings.HasSuffix(config.Path, "\\") {
+			config.Url = fmt.Sprintf("%v\\", config.Path)
+		}
+	} else {
+		if !strings.HasSuffix(config.Url, "/") {
+			config.Url = fmt.Sprintf("%v/", config.Url)
+		}
+
+		if !strings.HasSuffix(config.Path, "/") {
+			config.Url = fmt.Sprintf("%v/", config.Path)
+		}
 	}
 
 	return &config, nil
