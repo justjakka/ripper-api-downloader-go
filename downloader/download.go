@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
 	"github.com/schollz/progressbar/v3"
 )
 
@@ -130,6 +131,7 @@ func SubmitAlbum(config *Config, url string, client *http.Client) (*JobQuery, er
 	}
 
 	req.Header.Set("api-key", config.ApiKey)
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -148,7 +150,7 @@ func SubmitAlbum(config *Config, url string, client *http.Client) (*JobQuery, er
 		if err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("invalid response %s", msg.Msg)
+		return nil, fmt.Errorf(msg.Msg)
 	}
 
 	var Jobinfo JobQuery
@@ -162,7 +164,7 @@ func SubmitAlbum(config *Config, url string, client *http.Client) (*JobQuery, er
 
 func CheckResponse(resp *http.Response) error {
 	switch resp.StatusCode {
-	case 200, 201, 102:
+	case 200, 201, 204:
 		return nil
 	}
 
@@ -176,7 +178,7 @@ func CheckResponse(resp *http.Response) error {
 	if err != nil {
 		return err
 	}
-	return fmt.Errorf("invalid response %s", msg.Msg)
+	return fmt.Errorf(msg.Msg)
 }
 
 func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo string) (*http.Response, error) {
@@ -190,11 +192,13 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 		return nil, err
 	}
 	req.Header.Set("api-key", config.ApiKey)
+	req.Header.Set("Content-Type", "application/json")
 
 	time.Sleep(2 * time.Second)
 
-	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s := spinner.New(spinner.CharSets[9], 200*time.Millisecond)
 	s.Color("white")
+	color.Set(color.FgWhite)
 	s.Prefix = "Waiting in queue"
 	s.FinalMSG = ""
 	s.Start()
@@ -222,22 +226,32 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 			return nil, err
 		}
 	}
-
+	s.Stop()
+	s = spinner.New(spinner.CharSets[9], 200*time.Millisecond)
+	s.Color("yellow")
+	color.Set(color.FgYellow)
 	s.Prefix = fmt.Sprintf("Processing %s ", releaseinfo)
+	s.FinalMSG = ""
+	s.Start()
 
-	for resp.StatusCode == 102 {
+	for resp.StatusCode == 204 {
 		time.Sleep(3 * time.Second)
 
 		resp, err = client.Do(req)
 		if err != nil {
+			color.Unset()
 			s.Stop()
 			return nil, err
 		}
 		err = CheckResponse(resp)
 		if err != nil {
+			color.Unset()
 			return nil, err
 		}
 	}
+
+	color.Unset()
+
 	if resp.StatusCode == 200 {
 		s.Stop()
 		return resp, nil
@@ -256,7 +270,7 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 	}
 }
 
-func Download(config *Config, url string, client *http.Client) error {
+func Download(config *Config, url string, client *http.Client, counter int, max_downloads int) error {
 	releasetitle, err := GetReleaseInfo(url)
 	if err != nil {
 		return err
@@ -272,7 +286,6 @@ func Download(config *Config, url string, client *http.Client) error {
 	if err != nil {
 		return nil
 	}
-
 	sanAlbumFolder := filepath.Join(config.Path, ForbiddenNames.ReplaceAllString(releasetitle, "_"))
 	sanZipName := fmt.Sprintf("%s.zip", sanAlbumFolder)
 
@@ -282,10 +295,20 @@ func Download(config *Config, url string, client *http.Client) error {
 	}
 
 	defer resp.Body.Close()
-	bar := progressbar.DefaultBytes(
+	bar := progressbar.NewOptions64(
 		resp.ContentLength,
-		fmt.Sprintf("Downloading %s: ", releasetitle),
-	)
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionShowBytes(true),
+		progressbar.OptionFullWidth(),
+		progressbar.OptionSetDescription(fmt.Sprintf("[green]%d/%d[reset] %s", counter, max_downloads, releasetitle)),
+		progressbar.OptionSetPredictTime(true),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "[green]=[reset]",
+			SaucerHead:    "[green]>[reset]",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}))
 	_, err = io.Copy(io.MultiWriter(f, bar), resp.Body)
 	if err != nil {
 		return err

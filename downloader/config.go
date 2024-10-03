@@ -12,12 +12,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type Config struct {
-	Path   string `toml:"path"`
-	Url    string `toml:"url"`
-	ApiKey string `toml:"apikey"`
-}
-
 func GetConfigDir() string {
 	if runtime.GOOS == "windows" {
 		return os.Getenv("APPDATA")
@@ -40,7 +34,7 @@ func CheckConfig() (*Config, error) {
 	if path == "" {
 		return nil, errors.New("invalid OS")
 	}
-	err := os.Mkdir(path, os.ModePerm)
+	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil && os.IsNotExist(err) {
 		return nil, err
 	}
@@ -56,9 +50,9 @@ func CheckConfig() (*Config, error) {
 		defer fh.Close()
 
 		if runtime.GOOS == "windows" {
-			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "C:\\Users\\Test\\Downloads\\", Url: "https://test.dev/", ApiKey: "test123"})
+			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "C:\\Users\\Test\\Downloads\\", Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
 		} else {
-			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "/home/user/Downloads/", Url: "https://test.dev/", ApiKey: "test123"})
+			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "/home/user/Downloads/", Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
 		}
 		if err != nil {
 			return nil, err
@@ -84,7 +78,12 @@ func CheckConfig() (*Config, error) {
 		}
 
 		if !strings.HasSuffix(config.Path, "\\") {
-			config.Url = fmt.Sprintf("%v\\", config.Path)
+			config.Path = fmt.Sprintf("%v\\", config.Path)
+		}
+
+		err := os.MkdirAll(config.Path, os.ModePerm)
+		if err != nil && os.IsNotExist(err) {
+			return nil, err
 		}
 	} else {
 		if !strings.HasSuffix(config.Url, "/") {
@@ -92,7 +91,12 @@ func CheckConfig() (*Config, error) {
 		}
 
 		if !strings.HasSuffix(config.Path, "/") {
-			config.Url = fmt.Sprintf("%v/", config.Path)
+			config.Path = fmt.Sprintf("%v/", config.Path)
+		}
+
+		err := os.MkdirAll(config.Path, os.ModePerm)
+		if err != nil && os.IsNotExist(err) {
+			return nil, err
 		}
 	}
 

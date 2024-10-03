@@ -14,11 +14,10 @@ func Rip(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	client := &http.Client{}
 
-	for _, line := range os.Args[1:] {
-		err := downloader.Download(config, line, client)
+	for i, line := range os.Args[1:] {
+		err := downloader.Download(config, line, client, i+1, len(os.Args)-1)
 		if err != nil {
 			color.Red("Error while downloading %v: %v", line, err.Error())
 		}

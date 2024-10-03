@@ -15,6 +15,14 @@ type (
 	Message struct {
 		Msg string `json:"message"`
 	}
+
+	Config struct {
+		Path      string `toml:"path"`
+		Url       string `toml:"url"`
+		ApiKey    string `toml:"apikey"`
+		Convert   bool   `toml:"convert"`
+		Unarchive bool   `toml:"unarchive"`
+	}
 )
 
 var (
