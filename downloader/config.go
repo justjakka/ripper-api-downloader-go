@@ -47,7 +47,12 @@ func CheckConfig() (*Config, error) {
 			return nil, err
 		}
 
-		defer fh.Close()
+		defer func(fh *os.File) {
+			err := fh.Close()
+			if err != nil {
+				fmt.Printf("error while closing: %v\n", err.Error())
+			}
+		}(fh)
 
 		if runtime.GOOS == "windows" {
 			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "C:\\Users\\Test\\Downloads\\", Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
