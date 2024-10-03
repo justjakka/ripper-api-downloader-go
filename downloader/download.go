@@ -13,8 +13,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/briandowns/spinner"
-	"github.com/fatih/color"
 	"github.com/schollz/progressbar/v3"
 )
 
@@ -196,15 +194,18 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 
 	time.Sleep(2 * time.Second)
 
-	s := spinner.New(spinner.CharSets[9], 200*time.Millisecond)
-	s.Color("white")
-	color.Set(color.FgWhite)
-	s.Prefix = "Waiting in queue"
-	s.FinalMSG = ""
-	s.Start()
+	bar := progressbar.NewOptions(
+		-1,
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionClearOnFinish(),
+		progressbar.OptionSetDescription("[white]Waiting in queue[reset]"),
+	)
+
+	bar.Reset()
+
 	resp, err := client.Do(req)
 	if err != nil {
-		s.Stop()
+		bar.Finish()
 		return nil, err
 	}
 
@@ -218,7 +219,7 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 
 		resp, err = client.Do(req)
 		if err != nil {
-			s.Stop()
+			bar.Finish()
 			return nil, err
 		}
 		err = CheckResponse(resp)
@@ -226,34 +227,32 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 			return nil, err
 		}
 	}
-	s.Stop()
-	s = spinner.New(spinner.CharSets[9], 200*time.Millisecond)
-	s.Color("yellow")
-	color.Set(color.FgYellow)
-	s.Prefix = fmt.Sprintf("Processing %s ", releaseinfo)
-	s.FinalMSG = ""
-	s.Start()
+	bar.Finish()
+
+	bar = progressbar.NewOptions(
+		-1,
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionClearOnFinish(),
+		progressbar.OptionSetDescription(fmt.Sprintf("[yellow]Processing %s[reset]", releaseinfo)),
+	)
+	bar.Reset()
 
 	for resp.StatusCode == 204 {
 		time.Sleep(3 * time.Second)
 
 		resp, err = client.Do(req)
 		if err != nil {
-			color.Unset()
-			s.Stop()
+			bar.Finish()
 			return nil, err
 		}
 		err = CheckResponse(resp)
 		if err != nil {
-			color.Unset()
 			return nil, err
 		}
 	}
 
-	color.Unset()
-
+	bar.Finish()
 	if resp.StatusCode == 200 {
-		s.Stop()
 		return resp, nil
 	} else {
 		var msg Message
@@ -286,6 +285,7 @@ func Download(config *Config, url string, client *http.Client, counter int, max_
 	if err != nil {
 		return nil
 	}
+
 	sanAlbumFolder := filepath.Join(config.Path, ForbiddenNames.ReplaceAllString(releasetitle, "_"))
 	sanZipName := fmt.Sprintf("%s.zip", sanAlbumFolder)
 

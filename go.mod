@@ -4,7 +4,6 @@ go 1.23.1
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/briandowns/spinner v1.23.1
 	github.com/fatih/color v1.16.0
 	github.com/schollz/progressbar/v3 v3.16.0
 	github.com/urfave/cli/v2 v2.27.4
