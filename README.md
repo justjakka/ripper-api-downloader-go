@@ -12,10 +12,10 @@ or just `downloader`
 ## Config example (TOML format):
 ```toml
 path = "/home/user/Downloads/"       # folder files will be downloaded to
-url = "https://server.url/"   # api url
-apikey = "test"                     # api key
-convert = true                      # set to true if you want to convert from alac to flac (needs unarchive)
-unarchive = true                    # set to true if you want to unarchive downloaded zip
+url = "https://server.url/"          # api url
+apikey = "test"                      # api key
+convert = true                       # set to true if you want to convert from alac to flac (needs unarchive)
+unarchive = true                     # set to true if you want to unarchive downloaded zip
 ```
 
 ## Building dependencies:
