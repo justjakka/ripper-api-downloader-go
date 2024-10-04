@@ -13,12 +13,12 @@ import (
 
 func Rip(_ *cli.Context) error {
 	config, err := downloader.CheckConfig()
-
-	var wg sync.WaitGroup
-
 	if err != nil {
 		return err
 	}
+
+	var wg sync.WaitGroup
+
 	client := &http.Client{}
 
 	for i, line := range os.Args[1:] {
