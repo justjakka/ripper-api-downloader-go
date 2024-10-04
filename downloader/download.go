@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fatih/color"
+	"github.com/justjakka/ripper-api-downloader-go/converter"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/schollz/progressbar/v3"
@@ -359,4 +363,45 @@ func Download(config *Config, url string, client *http.Client, counter, maxDownl
 	}
 	fmt.Println()
 	return sanZipName, nil
+}
+
+func ProcessDownloads(config *Config, client *http.Client, links []string) error {
+	var wg sync.WaitGroup
+
+	for i, line := range links {
+		Zipname, err := Download(config, line, client, i+1, len(links))
+		if err != nil {
+			color.Red("Error while downloading %s: %s", line, err.Error())
+		}
+		if config.Unarchive && config.Convert {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := converter.Unzip(Zipname); err != nil {
+					color.Red("Error while unzipping %s: %s", Zipname, err.Error())
+				}
+				if err := os.Remove(Zipname); err != nil {
+					color.Red("Error while removing %s: %s", Zipname, err.Error())
+				}
+				Dirname := strings.TrimSuffix(Zipname, filepath.Ext(Zipname))
+				if err := converter.ProcessFiles(Dirname); err != nil {
+					color.Red("Error while processing %s: %s", Dirname, err.Error())
+				}
+			}()
+		} else if config.Unarchive {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := converter.Unzip(Zipname); err != nil {
+					color.Red("Error while unzipping %s: %s", Zipname, err.Error())
+				}
+				if err := os.Remove(Zipname); err != nil {
+					color.Red("Error while removing %s: %s", Zipname, err.Error())
+				}
+			}()
+		}
+	}
+
+	wg.Wait()
+	return nil
 }

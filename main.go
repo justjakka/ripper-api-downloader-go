@@ -1,14 +1,14 @@
 package main
 
 import (
-	"net/http"
-	"os"
-	"sync"
-
+	"bufio"
+	"fmt"
 	"github.com/fatih/color"
-	"github.com/justjakka/ripper-api-downloader-go/converter"
 	"github.com/justjakka/ripper-api-downloader-go/downloader"
 	"github.com/urfave/cli/v2"
+	"net/http"
+	"os"
+	"strings"
 )
 
 func Rip(_ *cli.Context) error {
@@ -16,31 +16,26 @@ func Rip(_ *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	var wg sync.WaitGroup
-
 	client := &http.Client{}
 
-	for i, line := range os.Args[1:] {
-		Zipname, err := downloader.Download(config, line, client, i+1, len(os.Args)-1)
+	var links []string
+
+	if len(os.Args) < 2 {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("URL: ")
+		url, err := reader.ReadString('\n')
 		if err != nil {
-			color.Red("Error while downloading %s: %s", line, err.Error())
+			return err
 		}
-		if config.Unarchive {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if err := converter.Unzip(Zipname); err != nil {
-					color.Red("Error while unzipping %s: %s", Zipname, err.Error())
-				}
-				if err := os.Remove(Zipname); err != nil {
-					color.Red("Error while removing %s: %s", Zipname, err.Error())
-				}
-			}()
-		}
+		url = strings.TrimSpace(url)
+		links = append(links, url)
+	} else {
+		links = os.Args[1:]
 	}
 
-	wg.Wait()
+	if err := downloader.ProcessDownloads(config, client, links); err != nil {
+		return err
+	}
 	return nil
 }
 

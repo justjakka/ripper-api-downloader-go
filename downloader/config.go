@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/fatih/color"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -103,6 +104,10 @@ func CheckConfig() (*Config, error) {
 		if err != nil && os.IsNotExist(err) {
 			return nil, err
 		}
+	}
+
+	if !config.Unarchive && config.Convert {
+		color.Red("Invalid configuration! Convert must be used with unarchive")
 	}
 
 	return &config, nil
