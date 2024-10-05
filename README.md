@@ -17,6 +17,3 @@ apikey = "test"                      # api key
 convert = true                       # set to true if you want to convert from alac to flac (needs unarchive)
 unarchive = true                     # set to true if you want to unarchive downloaded zip
 ```
-
-## Building dependencies:
-* taglib
