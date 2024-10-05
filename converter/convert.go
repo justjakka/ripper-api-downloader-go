@@ -2,9 +2,9 @@ package converter
 
 import (
 	"errors"
+	"fmt"
 	"github.com/fatih/color"
 	"github.com/mewkiz/pkg/pathutil"
-	"github.com/wtolson/go-taglib"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,37 +14,54 @@ import (
 	"sync"
 )
 
-func CopyTags(AlacPath string) error {
-	FlacPath := pathutil.TrimExt(AlacPath) + ".flac"
-
-	AlacFile, err := taglib.Read(AlacPath)
-	if err != nil {
-		return err
+func GenerateArgs(tags *Tags, total string) []string {
+	args := []string{"-f8"}
+	if tags.Artist != "" {
+		args = append(args, "-T")
+		args = append(args, fmt.Sprintf("ARTIST=%s", tags.Artist))
 	}
-	defer AlacFile.Close()
-
-	FlacFile, err := taglib.Read(FlacPath)
-	if err != nil {
-		return err
+	if tags.Album != "" {
+		args = append(args, "-T")
+		args = append(args, fmt.Sprintf("ALBUM=%s", tags.Album))
+	}
+	if tags.AlbumArtist != "" {
+		args = append(args, "-T")
+		args = append(args, fmt.Sprintf("ALBUMARTIST=%s", tags.AlbumArtist))
+	}
+	if tags.Title != "" {
+		args = append(args, "-T")
+		args = append(args, fmt.Sprintf("TITLE=%s", tags.Title))
+	}
+	if tags.Year != "" {
+		args = append(args, "-T")
+		args = append(args, fmt.Sprintf("DATE=%s", tags.Year))
+	}
+	if tags.TrackNumber != "" {
+		args = append(args, "-T")
+		args = append(args, fmt.Sprintf("TRACKNUMBER=%s", tags.TrackNumber))
+	}
+	if tags.DiscNumber != "" {
+		args = append(args, "-T")
+		args = append(args, fmt.Sprintf("DISCNUMBER=%s", tags.DiscNumber))
+	} else {
+		args = append(args, "-T")
+		args = append(args, "DISCNUMBER=1")
 	}
 
-	defer FlacFile.Close()
+	args = append(args, "-T")
+	args = append(args, fmt.Sprintf("TOTALTRACKS=%s", total))
+	args = append(args, "-T")
+	args = append(args, fmt.Sprintf("TRACKTOTAL=%s", total))
 
-	FlacFile.SetAlbum(AlacFile.Album())
-	FlacFile.SetArtist(AlacFile.Artist())
-	FlacFile.SetTitle(AlacFile.Title())
-	FlacFile.SetYear(AlacFile.Year())
-	FlacFile.SetTrack(AlacFile.Track())
-	FlacFile.SetGenre(AlacFile.Genre())
+	args = append(args, "-T")
+	args = append(args, "TOTALDISCS=1")
+	args = append(args, "-T")
+	args = append(args, "DISCTOTAL=1")
 
-	if err := FlacFile.Save(); err != nil {
-		return err
-	}
-
-	return nil
+	return args
 }
 
-func ConvertFile(path string) error {
+func ConvertFile(path string, total string) error {
 	if filepath.Ext(path) != ".m4a" {
 		return nil
 	}
@@ -76,15 +93,20 @@ func ConvertFile(path string) error {
 			return err
 		}
 	}
-	if err := exec.Command("flac", "-8", "-f", WavName).Run(); err != nil {
+
+	tags, err := ParseALACTags(path)
+	if err != nil {
+		return err
+	}
+
+	args := GenerateArgs(tags, total)
+	args = append(args, WavName)
+
+	if err := exec.Command("flac", args...).Run(); err != nil {
 		return err
 	}
 
 	if err := os.Remove(WavName); err != nil {
-		return err
-	}
-
-	if err := CopyTags(path); err != nil {
 		return err
 	}
 
@@ -101,13 +123,29 @@ func ProcessFiles(dirname string) error {
 		return err
 	}
 
+	counter := 0
+	err = filepath.Walk(dirname, func(path string, f os.FileInfo, _ error) error {
+		if !f.IsDir() {
+			if filepath.Ext(f.Name()) == ".m4a" {
+				counter += 1
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	total := fmt.Sprint(counter)
+
 	var wg sync.WaitGroup
 
 	for _, file := range files {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := ConvertFile(filepath.Join(dirname, file.Name())); err != nil {
+			if err := ConvertFile(filepath.Join(dirname, file.Name()), total); err != nil {
 				color.Red("Error while processing %s: %s", file.Name(), err.Error())
 			}
 		}()
