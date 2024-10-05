@@ -184,25 +184,6 @@ func SubmitAlbum(config *Config, url string, client *http.Client) (*JobQuery, er
 	return &Jobinfo, nil
 }
 
-//func CheckResponse(resp *http.Response) error {
-//	switch resp.StatusCode {
-//	case 200, 201, 204:
-//		return nil
-//	}
-//
-//	var msg Message
-//	body, err := io.ReadAll(resp.Body)
-//	if err != nil {
-//		return err
-//	}
-//
-//	err = json.Unmarshal(body, &msg)
-//	if err != nil {
-//		return err
-//	}
-//	return fmt.Errorf(msg.Msg)
-//}
-
 func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo string) (*http.Response, error) {
 	reqBody, err := json.Marshal(job)
 	if err != nil {
