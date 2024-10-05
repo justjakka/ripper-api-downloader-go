@@ -184,24 +184,24 @@ func SubmitAlbum(config *Config, url string, client *http.Client) (*JobQuery, er
 	return &Jobinfo, nil
 }
 
-func CheckResponse(resp *http.Response) error {
-	switch resp.StatusCode {
-	case 200, 201, 204:
-		return nil
-	}
-
-	var msg Message
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(body, &msg)
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf(msg.Msg)
-}
+//func CheckResponse(resp *http.Response) error {
+//	switch resp.StatusCode {
+//	case 200, 201, 204:
+//		return nil
+//	}
+//
+//	var msg Message
+//	body, err := io.ReadAll(resp.Body)
+//	if err != nil {
+//		return err
+//	}
+//
+//	err = json.Unmarshal(body, &msg)
+//	if err != nil {
+//		return err
+//	}
+//	return fmt.Errorf(msg.Msg)
+//}
 
 func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo string) (*http.Response, error) {
 	reqBody, err := json.Marshal(job)
@@ -213,98 +213,71 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("api-key", config.ApiKey)
+	req.Header.Set("Api-Key", config.ApiKey)
 	req.Header.Set("Content-Type", "application/json")
-
-	time.Sleep(2 * time.Second)
 
 	bar := progressbar.NewOptions(
 		-1,
 		progressbar.OptionEnableColorCodes(true),
 		progressbar.OptionClearOnFinish(),
-		progressbar.OptionSetDescription("[white]Waiting in queue[reset]"),
+		progressbar.OptionSetDescription(fmt.Sprintf("[yellow]Waiting to download %s[reset]", releaseinfo)),
 	)
-
 	bar.Reset()
 
 	resp, err := client.Do(req)
 	if err != nil {
-		err := bar.Finish()
-		if err != nil {
-			return nil, err
-		}
 		return nil, err
 	}
+	code := resp.StatusCode
 
-	err = CheckResponse(resp)
-	if err != nil {
-		return nil, err
-	}
-
-	for resp.StatusCode == 201 {
-		time.Sleep(3 * time.Second)
-
-		resp, err = client.Do(req)
-		if err != nil {
-			err := bar.Finish()
+	for {
+		switch code {
+		case 200:
+			req, err := http.NewRequest("GET", fmt.Sprintf("%sjob/", config.Url), bytes.NewBuffer(reqBody))
 			if err != nil {
 				return nil, err
 			}
-			return nil, err
-		}
-		err = CheckResponse(resp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	err = bar.Finish()
-	if err != nil {
-		return nil, err
-	}
-
-	bar = progressbar.NewOptions(
-		-1,
-		progressbar.OptionEnableColorCodes(true),
-		progressbar.OptionClearOnFinish(),
-		progressbar.OptionSetDescription(fmt.Sprintf("[yellow]Processing %s[reset]", releaseinfo)),
-	)
-	bar.Reset()
-
-	for resp.StatusCode == 204 {
-		time.Sleep(3 * time.Second)
-
-		resp, err = client.Do(req)
-		if err != nil {
-			err := bar.Finish()
+			req.Header.Set("Api-Key", config.ApiKey)
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := client.Do(req)
+			if err != nil {
+				_ = bar.Finish()
+				return nil, err
+			}
+			err = bar.Finish()
 			if err != nil {
 				return nil, err
 			}
-			return nil, err
-		}
-		err = CheckResponse(resp)
-		if err != nil {
-			return nil, err
-		}
-	}
+			return resp, nil
 
-	err = bar.Finish()
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == 200 {
-		return resp, nil
-	} else {
-		var msg Message
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
+		case 201, 204:
+			req, err := http.NewRequest("GET", fmt.Sprintf("%sjob/", config.Url), bytes.NewBuffer(reqBody))
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("Api-Key", config.ApiKey)
+			req.Header.Set("Content-Type", "application/json")
+			time.Sleep(3 * time.Second)
+			resp, err := client.Do(req)
+			if err != nil {
+				_ = bar.Finish()
+				return nil, err
+			}
+			code = resp.StatusCode
+		default:
+			_ = bar.Finish()
+			var msg Message
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
 
-		err = json.Unmarshal(body, &msg)
-		if err != nil {
-			return nil, err
+			err = json.Unmarshal(body, &msg)
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("invalid response %s", msg.Msg)
 		}
-		return nil, fmt.Errorf("invalid response %s", msg.Msg)
 	}
 }
 
