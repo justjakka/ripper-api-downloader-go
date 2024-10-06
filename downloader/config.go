@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/fatih/color"
 )
 
 func GetConfigDir() string {
@@ -79,8 +79,8 @@ func CheckConfig() (*Config, error) {
 	}
 
 	if runtime.GOOS == "windows" {
-		if !strings.HasSuffix(config.Url, "\\") {
-			config.Url = fmt.Sprintf("%v\\", config.Url)
+		if !strings.HasSuffix(config.Url, "/") {
+			config.Url = fmt.Sprintf("%v/", config.Url)
 		}
 
 		if !strings.HasSuffix(config.Path, "\\") {
