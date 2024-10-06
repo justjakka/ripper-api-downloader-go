@@ -56,7 +56,8 @@ func CheckConfig() (*Config, error) {
 		}(fh)
 
 		if runtime.GOOS == "windows" {
-			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "C:\\Users\\Test\\Downloads\\", Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
+			home := os.Getenv("USERPROFILE")
+			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: fmt.Sprintf("%s\\Downloads", home), Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
 		} else {
 			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "/home/user/Downloads/", Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
 		}
