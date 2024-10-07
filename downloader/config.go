@@ -62,7 +62,14 @@ func CheckConfig() (*Config, error) {
 		} else {
 			home = os.Getenv("HOME")
 		}
-		err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: filepath.Join(home, "Downloads"), Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
+		err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{
+			Path:      filepath.Join(home, "Downloads"),
+			Url:       "https://test.dev/",
+			ApiKey:    "test123",
+			Unarchive: false,
+			Convert:   false,
+		})
+
 		if err != nil {
 			return nil, err
 		}
