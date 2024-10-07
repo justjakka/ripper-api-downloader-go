@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/fatih/color"
 )
 
 func GetConfigDir() string {
@@ -40,10 +40,10 @@ func CheckConfig() (*Config, error) {
 		return nil, err
 	}
 
-	configfile := filepath.Join(path, "ripper-config.toml")
+	ConfigFile := filepath.Join(path, "ripper-config.toml")
 
-	if _, err = os.Stat(configfile); os.IsNotExist(err) {
-		fh, err := os.Create(configfile)
+	if _, err = os.Stat(ConfigFile); os.IsNotExist(err) {
+		fh, err := os.Create(ConfigFile)
 		if err != nil {
 			return nil, err
 		}
@@ -55,11 +55,21 @@ func CheckConfig() (*Config, error) {
 			}
 		}(fh)
 
+		var home string
 		if runtime.GOOS == "windows" {
-			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "C:\\Users\\Test\\Downloads\\", Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
+			home = os.Getenv("USERPROFILE")
+
 		} else {
-			err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{Path: "/home/user/Downloads/", Url: "https://test.dev/", ApiKey: "test123", Unarchive: false, Convert: false})
+			home = os.Getenv("HOME")
 		}
+		err = toml.NewEncoder(bufio.NewWriter(fh)).Encode(Config{
+			Path:      filepath.Join(home, "Downloads"),
+			Url:       "https://test.dev/",
+			ApiKey:    "test123",
+			Unarchive: false,
+			Convert:   false,
+		})
+
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +80,7 @@ func CheckConfig() (*Config, error) {
 
 	var config Config
 
-	if _, err := toml.DecodeFile(configfile, &config); err != nil {
+	if _, err := toml.DecodeFile(ConfigFile, &config); err != nil {
 		return nil, err
 	}
 
@@ -79,31 +89,21 @@ func CheckConfig() (*Config, error) {
 	}
 
 	if runtime.GOOS == "windows" {
-		if !strings.HasSuffix(config.Url, "\\") {
-			config.Url = fmt.Sprintf("%v\\", config.Url)
-		}
-
 		if !strings.HasSuffix(config.Path, "\\") {
 			config.Path = fmt.Sprintf("%v\\", config.Path)
 		}
-
-		err := os.MkdirAll(config.Path, os.ModePerm)
-		if err != nil && os.IsNotExist(err) {
-			return nil, err
-		}
 	} else {
-		if !strings.HasSuffix(config.Url, "/") {
-			config.Url = fmt.Sprintf("%v/", config.Url)
-		}
-
 		if !strings.HasSuffix(config.Path, "/") {
 			config.Path = fmt.Sprintf("%v/", config.Path)
 		}
+	}
 
-		err := os.MkdirAll(config.Path, os.ModePerm)
-		if err != nil && os.IsNotExist(err) {
-			return nil, err
-		}
+	if !strings.HasSuffix(config.Url, "/") {
+		config.Url = fmt.Sprintf("%v/", config.Url)
+	}
+
+	if err := os.MkdirAll(config.Path, os.ModePerm); err != nil && os.IsNotExist(err) {
+		return nil, err
 	}
 
 	if !config.Unarchive && config.Convert {
