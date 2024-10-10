@@ -1,10 +1,13 @@
-on:
-  release:
-    types: [created]
+name: Release
+on: [ workflow_call, workflow_dispatch ]
 
 permissions:
     contents: write
     packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   releases-matrix:
