@@ -33,3 +33,4 @@ jobs:
         goarch: ${{ matrix.goarch }}
         goversion: 1.23
         binary_name: "downloader"
+        compress_assets: OFF
