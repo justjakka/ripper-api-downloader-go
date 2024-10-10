@@ -287,6 +287,10 @@ func Download(config *Config, url string, client *http.Client, counter, maxDownl
 		return "", err
 	}
 
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
+
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -326,8 +330,7 @@ func ProcessDownloads(config *Config, client *http.Client, links []string) error
 		Zipname, err := Download(config, line, client, i+1, len(links))
 		if err != nil {
 			color.Red("Error while downloading %s: %s", line, err.Error())
-		}
-		if config.Unarchive && config.Convert {
+		} else if config.Unarchive && config.Convert {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
