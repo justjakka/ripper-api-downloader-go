@@ -184,47 +184,37 @@ func SubmitAlbum(config *Config, url string, client *http.Client) (*JobQuery, er
 	return &Jobinfo, nil
 }
 
-func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo string) (*http.Response, error) {
+func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseInfo string) (*http.Response, error) {
 	reqBody, err := json.Marshal(job)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%sjob/", config.Url), bytes.NewBuffer(reqBody))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Api-Key", config.ApiKey)
-	req.Header.Set("Content-Type", "application/json")
-
 	bar := progressbar.NewOptions(
 		-1,
 		progressbar.OptionEnableColorCodes(true),
 		progressbar.OptionClearOnFinish(),
-		progressbar.OptionSetDescription(fmt.Sprintf("[yellow]Waiting to download %s[reset]", releaseinfo)),
+		progressbar.OptionSetDescription(fmt.Sprintf("[yellow]Waiting to download %s[reset]", releaseInfo)),
 	)
 	bar.Reset()
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	code := resp.StatusCode
-
 	for {
+		req, err := http.NewRequest("GET", fmt.Sprintf("%sjob/", config.Url), bytes.NewBuffer(reqBody))
+		if err != nil {
+			_ = bar.Finish()
+			return nil, err
+		}
+		req.Header.Set("Api-Key", config.ApiKey)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
+		if err != nil {
+			_ = bar.Finish()
+			return nil, err
+		}
+		code := resp.StatusCode
+
 		switch code {
 		case 200:
-			req, err := http.NewRequest("GET", fmt.Sprintf("%sjob/", config.Url), bytes.NewBuffer(reqBody))
-			if err != nil {
-				return nil, err
-			}
-			req.Header.Set("Api-Key", config.ApiKey)
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := client.Do(req)
-			if err != nil {
-				_ = bar.Finish()
-				return nil, err
-			}
 			err = bar.Finish()
 			if err != nil {
 				return nil, err
@@ -232,19 +222,8 @@ func QueryJob(config *Config, job *JobQuery, client *http.Client, releaseinfo st
 			return resp, nil
 
 		case 201, 204:
-			req, err := http.NewRequest("GET", fmt.Sprintf("%sjob/", config.Url), bytes.NewBuffer(reqBody))
-			if err != nil {
-				return nil, err
-			}
-			req.Header.Set("Api-Key", config.ApiKey)
-			req.Header.Set("Content-Type", "application/json")
 			time.Sleep(3 * time.Second)
-			resp, err := client.Do(req)
-			if err != nil {
-				_ = bar.Finish()
-				return nil, err
-			}
-			code = resp.StatusCode
+
 		default:
 			_ = bar.Finish()
 			var msg Message
@@ -279,7 +258,7 @@ func Download(config *Config, url string, client *http.Client, counter, maxDownl
 		return "", err
 	}
 
-	sanAlbumFolder := filepath.Join(config.Path, ForbiddenNames.ReplaceAllString(releasetitle, "_"))
+	sanAlbumFolder := filepath.Join(config.Path, ForbiddenNames.ReplaceAllString(releasetitle, ""))
 	sanZipName := fmt.Sprintf("%s.zip", sanAlbumFolder)
 
 	f, err := os.OpenFile(sanZipName, os.O_CREATE|os.O_WRONLY, 0644)
@@ -315,10 +294,7 @@ func Download(config *Config, url string, client *http.Client, counter, maxDownl
 	if err != nil {
 		return "", err
 	}
-	err = bar.Finish()
-	if err != nil {
-		return "", err
-	}
+	_ = bar.Finish()
 	fmt.Println()
 	return sanZipName, nil
 }

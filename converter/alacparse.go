@@ -92,19 +92,26 @@ func ParseALACTags(ALACPath string) (*Tags, error) {
 			}
 			str := fmt.Sprintf("%v", out[0])
 
-			if BoxNum == 677587310 {
+			switch BoxNum {
+			case 677587310:
 				tags.Title = str
-			} else if BoxNum == 677587265 {
+
+			case 677587265:
 				tags.Artist = str
-			} else if BoxNum == 677587297 {
+
+			case 677587297:
 				tags.Album = str
-			} else if BoxNum == 677587300 {
+
+			case 677587300:
 				tags.Year = str
-			} else if BoxNum == 1631670868 {
+
+			case 1631670868:
 				tags.AlbumArtist = str
-			} else if BoxNum == 1953655662 {
+
+			case 1953655662:
 				tags.TrackNumber = str
-			} else if BoxNum == 1684632427 {
+
+			case 1684632427:
 				tags.DiscNumber = str
 			}
 			return nil, nil
