@@ -82,36 +82,43 @@ func ConvertFile(path string, total string) error {
 		return err
 	}
 
-	WavName := pathutil.TrimExt(path) + ".wav"
-
-	if BitDepth == 32 {
+	switch BitDepth {
+	case 32:
+		WavName := pathutil.TrimExt(path) + ".wav"
 		if err := exec.Command("ffmpeg", "-i", path, "-acodec", "pcm_s32le", WavName).Run(); err != nil {
 			return err
 		}
-	} else {
-		if err := exec.Command("ffmpeg", "-i", path, WavName).Run(); err != nil {
+		tags, err := ParseALACTags(path)
+		if err != nil {
 			return err
 		}
-	}
 
-	tags, err := ParseALACTags(path)
-	if err != nil {
-		return err
-	}
+		args := GenerateArgs(tags, total)
+		args = append(args, WavName)
 
-	args := GenerateArgs(tags, total)
-	args = append(args, WavName)
+		if err := exec.Command("flac", args...).Run(); err != nil {
+			return err
+		}
 
-	if err := exec.Command("flac", args...).Run(); err != nil {
-		return err
-	}
+		if err := os.Remove(WavName); err != nil {
+			return err
+		}
 
-	if err := os.Remove(WavName); err != nil {
-		return err
-	}
+		if err := os.Remove(path); err != nil {
+			return err
+		}
 
-	if err := os.Remove(path); err != nil {
-		return err
+	default:
+		FlacName := pathutil.TrimExt(path) + ".flac"
+		if err := exec.Command("ffmpeg", "-i", path, "-acodec", "flac", FlacName).Run(); err != nil {
+			return err
+		}
+		if err := exec.Command("flac", "-8", "-f", FlacName).Run(); err != nil {
+			return err
+		}
+		if err := os.Remove(path); err != nil {
+			return err
+		}
 	}
 
 	return nil
